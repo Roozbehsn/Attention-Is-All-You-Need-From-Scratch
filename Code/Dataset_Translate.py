@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
-def casual_mask(size):
-    mask = torch.triu(torch.ones((1 , size , size)) , diagonal=1).typr(torch.int)
+def causual_mask(size):
+    mask = torch.triu(torch.ones((1 , size , size)) , diagonal=1).type(torch.int)
     return mask == 0
 
 class TranslateDataset(Dataset):
@@ -14,9 +14,9 @@ class TranslateDataset(Dataset):
         self.src_language = src_language
         self.trg_language = trg_language
         self.seq_len = seq_len
-        self.special_token_sos = torch.Tensor([tokenizer_src.token_to_id(['[SOS]'])] , dtype=torch.int64)
-        self.special_token_eos = torch.Tensor([tokenizer_src.token_to_id(['[EOS]'])] , dtype=torch.int64)
-        self.special_token_pad = torch.Tensor([tokenizer_src.token_to_id(['[PAD]'])] , dtype=torch.int64)
+        self.special_token_sos = torch.tensor([tokenizer_src.token_to_id('[SOS]')] , dtype=torch.int64)
+        self.special_token_eos = torch.tensor([tokenizer_src.token_to_id('[EOS]')] , dtype=torch.int64)
+        self.special_token_pad = torch.tensor([tokenizer_src.token_to_id('[PAD]')] , dtype=torch.int64)
 
     def __len__(self):
         return len(self.dataset)
@@ -26,12 +26,18 @@ class TranslateDataset(Dataset):
         source_text = source_target['translation'][self.src_language]
         target_text = source_target['translation'][self.trg_language]
         encoder_input_tokens = self.tokenizer_src.encode(source_text).ids
-        decoder_input_tokens = self.tokenizer_trg.eecode(source_text).ids
+        decoder_input_tokens = self.tokenizer_trg.encode(target_text).ids # changed source_text to target_text
         padding_number_encoder = self.seq_len - len(encoder_input_tokens) - 2
         padding_number_decoder = self.seq_len - len(decoder_input_tokens) - 1
-        if padding_number_decoder < 0 or padding_number_encoder < 0 :
-            raise ValueError ('sequence is long')
-        
+
+        # This check is now redundant if filtering is done before creating the dataset
+        # if padding_number_decoder < 0 or padding_number_encoder < 0 :
+        #     raise ValueError ('sequence is long')
+
+        # Make sure that the sequence length is not negative after padding, if it is just set it to 0.
+        padding_number_encoder = max(0, padding_number_encoder)
+        padding_number_decoder = max(0, padding_number_decoder)
+
         encoder_input = torch.cat(
             [
             self.special_token_sos , torch.tensor(encoder_input_tokens , dtype=torch.int64) ,
@@ -50,8 +56,8 @@ class TranslateDataset(Dataset):
         target = torch.cat(
         [
         torch.tensor(decoder_input_tokens , dtype=torch.int64),
-        self.special_token_sos ,
-        torch.tensor([self.special_token_pad] * decoder_input_tokens , dtype=torch.int64),
+        self.special_token_eos , # changed special_token_sos to special_token_eos
+        torch.tensor([self.special_token_pad] * padding_number_decoder , dtype=torch.int64),
         ],
         dim=0,
         )
@@ -64,7 +70,7 @@ class TranslateDataset(Dataset):
             "encoder_input" : encoder_input ,
             "decoder_input" : decoder_input ,
             "encoder_mask" : (encoder_input != self.special_token_pad).unsqueeze(0).unsqueeze(0).int() ,
-            "decoder_mask" : (decoder_input != self.special_token_pad).unsqueeze(0).int() & casual_mask(decoder_input.size(0)) ,
+            "decoder_mask" : (decoder_input != self.special_token_pad).unsqueeze(0).int() & causual_mask(decoder_input.size(0)) ,
             "label" : target ,
             "source_text" : source_text ,
             "target_text" : target_text

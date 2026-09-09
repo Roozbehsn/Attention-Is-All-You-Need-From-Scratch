@@ -18,7 +18,7 @@ class Embed(nn.Module):
     
 class PositionalEncoding(nn.Module):
     
-    def __init__(self , dropout , d_model , seq_len = 500):
+    def __init__(self , d_model  ,  seq_len , dropout):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
         pe = torch.zeros(seq_len , d_model)
@@ -34,23 +34,6 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-     
-
-class LayerNormalization(nn.Module) :
-    def __init__(self , size , eps=1e-6):
-        super().__init__()
-        # self.gamma = nn.parameter(torch.ones(1))
-        # self.beta = nn.parameter(torch.zeros(1))
-        self.gamma = nn.Parameter(size)
-        self.beta = nn.Parameter(size)
-        self.eps = eps
-    def forward(self , x):
-        mean = x.mean(-1 , keepdim=True)
-        std = x.std(-1 , keepdim=True)
-        return self.gamma * (x - mean) / (std + self.eps) + self.beta
-
-
-
 class FeedForwardNetwork(nn.Module):
     def __init__(self, d_model , d_ff , dropout=0.1):
         super().__init__()
@@ -62,15 +45,17 @@ class FeedForwardNetwork(nn.Module):
 
 
 class LayerNormalization(nn.Module) :
-    def __init__(self , size , eps=1e-6):
+    def __init__(self , size=512 , eps=1e-6):
         super().__init__()
-        self.gamma = nn.Parameter(size)
-        self.beta = nn.Parameter(size)
+        # self.gamma = nn.parameter(torch.ones(1))
+        # self.beta = nn.parameter(torch.zeros(1))
+        self.gamma = nn.Parameter(torch.ones(size))
+        self.beta = nn.Parameter(torch.zeros(size))
         self.eps = eps
     def forward(self , x):
         mean = x.mean(-1 , keepdim=True)
         std = x.std(-1 , keepdim=True)
-        return self.gammas * (x - mean) / (std + self.eps) + self.beta     
+        return self.gamma * (x - mean) / (std + self.eps) + self.beta     
 
 class FeedForwardNetwork(nn.Module):
     def __init__(self, d_model , d_ff , dropout=0.1):
@@ -159,13 +144,13 @@ class DecoderLayer(nn.Module):
         super().__init__()
         self.attention_block = attenntion_block
         self.cross_attention_block = cross_attention_block
-        self.feddforwardblock = feedforwardblock
+        self.feedforwardblock = feedforwardblock
         self.residualnetwork = nn.ModuleList([LayerConnection(dropout) for _ in range (3)])
     # x : input of Decoder , source_mask : mask applied to the Encoder , target_mask : mask apllied to Decoder    
     def forward(self , x , encoder_output , source_mask , target_mask):
         x = self.residualnetwork[0](x , lambda x : self.attention_block(x , x , x , target_mask))
-        x = self.residualconnection[1](x , lambda x : self.cross_attention_block(x , encoder_output , encoder_output , source_mask ))
-        x= self.residualconnection[2](x , self.feedforwardblock)
+        x = self.residualnetwork[1](x , lambda x : self.cross_attention_block(x , encoder_output , encoder_output , source_mask ))
+        x= self.residualnetwork[2](x , self.feedforwardblock)
         return x
 
 class Decoder(nn.Module):
@@ -184,6 +169,19 @@ class Generation(nn.Module):
         self.gnrt = nn.Linear(d_model , vocab_size)
     def forward(self , x):
         return torch.log_softmax(self.gnrt(x) , dim = -1)
+# class Generation(nn.Module):
+
+#     def __init__(self, d_model, vocab_size):
+#         super().__init__()
+
+#         self.gnrt = nn.Linear(
+#             d_model,
+#             vocab_size
+#         )
+
+#     def forward(self, x):
+#         return self.gnrt(x)  
+    
 
 class EncoderDecoder(nn.Module):
     def __init__(self, encoder : Encoder , decoder : Decoder , src_embed : Embed , trg_embed : Embed , src_pos : PositionalEncoding , trg_pos : PositionalEncoding , generator_layer : Generation):
@@ -195,14 +193,14 @@ class EncoderDecoder(nn.Module):
         self.src_pos = src_pos
         self.trg_pos = trg_pos
         self.generator_layer = generator_layer
-    def encoder(self , src , src_mask):
+    def encode(self , src , src_mask):
         src = self.src_embed(src)
         src = self.src_pos(src)
-        return self.encoder(src , src_mask)
-    def decoder(self , trg , trg_mask):
+        return self.encoders(src , src_mask)
+    def decode(self , encoder_output , src_mask , trg , trg_mask):
         trg = self.trg_embed(trg)
         trg = self.trg_pos(trg)
-        return self.decoder(trg , trg_mask)
+        return self.decoders(trg , encoder_output , src_mask , trg_mask)
     def generation(self , x):
         return self.generator_layer(x)
 
@@ -226,8 +224,8 @@ def build_model(src_vocab , trg_vocab , src_seq , trg_seq , d_model = 512 , N = 
         decoder_layer = DecoderLayer(decoder_self_attention , decoder_cross_attention , decoder_feedforward , dropout)
         decoder_layers.append(decoder_layer)
 
-    encoder = Encoder(nn.ModuleList(encoder_layer))
-    decoder = Decoder(nn.ModuleList(decoder_layer))
+    encoder = Encoder(nn.ModuleList(encoder_layers))
+    decoder = Decoder(nn.ModuleList(decoder_layers))
     generation_layer = Generation(d_model , trg_vocab)
 
     transformer = EncoderDecoder(encoder , decoder , src_embedding , trg_embedding , src_position , trg_position , generation_layer)
