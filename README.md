@@ -212,7 +212,7 @@ to keep in mind:
 These resources were invaluable in helping me understand the Transformer
 architecture well enough to implement it from scratch:
 
-- [Coding a Transformer from scratch (video)](https://youtu.be/bCz4OMemCcA?si=BuRUZuCK__Xkh79t) —
+- [Attention is all you need (Transformer) - Model explanation (including math), Inference and Training](https://youtu.be/bCz4OMemCcA?si=BuRUZuCK__Xkh79t) —
   a walkthrough of implementing the Transformer architecture step by step.
 - [The Transformer: Attention Is All You Need — Glass Box Medicine](https://glassboxmedicine.com/2019/08/15/the-transformer-attention-is-all-you-need/) —
   a clear, illustrated breakdown of the paper's core ideas.
