@@ -231,8 +231,10 @@ Contributions are welcome! If you'd like to help improve this project:
 2. Create a feature branch (`git checkout -b feature/your-feature`).
 3. Make your changes and commit them with a clear message.
 4. Push to your fork and open a pull request describing what you changed and why.
+
 Bug reports and suggestions are just as welcome as code — feel free to open an issue.
-you can also reach out via email at rseyednozadi@gmail.com.
+
+You can also reach out via email at rseyednozadi@gmail.com.
 
 ## License
 
